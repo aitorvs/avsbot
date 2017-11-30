@@ -52,7 +52,7 @@ class TwitterBot : ServletContextListener {
                 doOnScrub = { _: Long, _: Long -> },
                 doOnStatus = { status ->
                     status?.let {
-                        if (it.isRetweeted) {
+                        if (!it.isRetweeted) {
                             println("RT interest: ${it.text}")
 //                            twitter.retweetStatus(it.id)
                         }
@@ -70,7 +70,6 @@ class TwitterBot : ServletContextListener {
         filter.track(*track).language("en")
         // filter creates an internal thread that checks the stream and calls the listeners
         twitterStream.filter(filter)
-        twitter.friendsFollowers()
     }
 
     override fun contextDestroyed(p0: ServletContextEvent?) {
