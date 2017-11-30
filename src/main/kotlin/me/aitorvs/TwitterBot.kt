@@ -2,10 +2,7 @@ package me.aitorvs
 
 import me.aitorvs.extensions.minutes
 import me.aitorvs.extensions.schedulePeriodic
-import twitter4j.Status
-import twitter4j.Twitter
-import twitter4j.TwitterException
-import twitter4j.TwitterFactory
+import twitter4j.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import javax.servlet.ServletContextEvent
@@ -16,10 +13,12 @@ import javax.servlet.annotation.WebListener
 class TwitterBot : ServletContextListener {
 
     private val twitter : Twitter by lazy { TwitterFactory.getSingleton() }
+    private val twitterStream : TwitterStream by lazy { TwitterStreamFactory.getSingleton() }
     private val schedulers : ScheduledExecutorService by lazy { Executors.newSingleThreadScheduledExecutor() }
 
     override fun contextInitialized(p0: ServletContextEvent?) {
         println("Started!")
+        rtInterests()
         schedulers.schedulePeriodic(15.minutes, Runnable {
             rtMentions()
         })
@@ -34,10 +33,44 @@ class TwitterBot : ServletContextListener {
                     .mentionsTimeline
                     .asSequence()
                     .filterNot(Status::isRetweeted)
-                    .forEach { twitter.retweetStatus(it.id) }
+                    .filterNot(Status::isRetweetedByMe)
+                    .forEach {
+                        println("RT ${it.text}")
+//                        twitter.retweetStatus(it.id)
+                    }
         } catch (e: TwitterException) {
             println("Failed RTing with error: $e")
         }
+    }
+
+    private fun rtInterests() {
+        val l = SimpleStatusListener(
+                doOnDeletionNotice = {},
+                doOnWarning = {},
+                doOnException = {},
+                doOnLimitationNotice = {},
+                doOnScrub = { _: Long, _: Long -> },
+                doOnStatus = { status ->
+                    status?.let {
+                        if (it.isRetweeted) {
+                            println("RT interest: ${it.text}")
+//                            twitter.retweetStatus(it.id)
+                        }
+                    }
+                }
+        )
+
+        // add the listener
+        // Use helper to fix bug on https://youtrack.jetbrains.com/issue/KT-11700
+        Twitter4JHelper.addStatusListner(twitterStream, l)
+
+        // create the filter and add it to the stream
+        val filter = FilterQuery()
+        val track = arrayOf("#AndroidDev")
+        filter.track(*track).language("en")
+        // filter creates an internal thread that checks the stream and calls the listeners
+        twitterStream.filter(filter)
+        twitter.friendsFollowers()
     }
 
     override fun contextDestroyed(p0: ServletContextEvent?) {
