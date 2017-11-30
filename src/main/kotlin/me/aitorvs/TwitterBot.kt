@@ -19,7 +19,7 @@ class TwitterBot : ServletContextListener {
     override fun contextInitialized(p0: ServletContextEvent?) {
         println("Started!")
         rtInterests()
-        schedulers.schedulePeriodic(15.minutes, Runnable {
+        schedulers.schedulePeriodic(5.minutes, Runnable {
             rtMentions()
         })
     }
